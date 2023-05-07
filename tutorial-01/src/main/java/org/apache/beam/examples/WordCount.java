@@ -18,21 +18,29 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.transforms.Filter;
+import java.util.Arrays;
+
+import javax.swing.GroupLayout.Group;
 
 public class WordCount {
 
   public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
-
-    Pipeline p = Pipeline.create(options);
-
-    // Concepts #2 and #3: Our pipeline applies the composite CountWords transform,
-    // and passes the
-    // static FormatAsTextFn() to the ParDo transform.
-    p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-        .apply(new CountWords())
-        .apply(MapElements.via(new FormatAsTextFn()))
-        .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+    Pipeline p = Pipeline.create();
+    p.apply("ReadLines", TextIO.read().from("sample_input.txt"))
+        .apply(
+            FlatMapElements.into(TypeDescriptors.strings())
+                .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
+        .apply(Filter.by((String word) -> !word.isEmpty()))
+        .apply(Count.perElement())
+        .apply(
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    (KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
+        .apply("Batch", GroupIntoBatches.ofSize(100))
+        .apply("WriteCounts", TextIO.write().to("sample_output.txt"));
 
     p.run().waitUntilFinish();
   }
