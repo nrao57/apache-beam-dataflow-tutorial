@@ -33,18 +33,7 @@ public class WordCount {
 
   public static void main(String[] args) {
     Pipeline p = Pipeline.create();
-    p.apply("ReadLines", TextIO.read().from("sample_input.txt"))
-            .apply(
-                    FlatMapElements.into(TypeDescriptors.strings())
-                            .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
-        .apply(Filter.by((String word) -> !word.isEmpty()))
-        .apply(Count.perElement())
-        .apply(
-            MapElements.into(TypeDescriptors.strings())
-                .via(
-                    (KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
-        .apply("WriteCounts", TextIO.write().to("sample_output.txt").withNumShards(1));
-
+    p.apply("ReadLines", TextIO.read().from("sample_input.txt"));
     p.run().waitUntilFinish();
   }
 }
